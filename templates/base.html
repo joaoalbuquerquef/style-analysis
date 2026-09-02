@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Style Analysis{% endblock %} — RBSA Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+
+    /* table row hover */
+    .fund-row:hover { background: #f8fafc; cursor: pointer; }
+    .fund-row:hover td:first-child { border-left: 3px solid #2563eb; }
+    td:first-child { border-left: 3px solid transparent; transition: border-color .15s; }
+
+    /* chart card */
+    .chart-card { box-shadow: 0 1px 3px 0 rgb(0 0 0 / .07), 0 1px 2px -1px rgb(0 0 0 / .07); }
+
+    /* metric pill */
+    .metric-pill {
+      display: flex; flex-direction: column;
+      padding: .75rem 1rem;
+      border-radius: .5rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <!-- ── Navigation ──────────────────────────────────────────────────── -->
+  <nav class="bg-[#0f172a] text-white sticky top-0 z-50 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+
+        <!-- Logo / brand -->
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-7 h-7 rounded bg-blue-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+            </svg>
+          </div>
+          <a href="/" class="font-semibold tracking-wide text-sm text-white hover:text-blue-400 transition-colors">
+            RBSA <span class="text-slate-400 font-normal">/ Multimercado</span>
+          </a>
+        </div>
+
+        <!-- Nav links -->
+        <div class="flex items-center gap-1">
+          <a href="/"
+             class="px-3 py-1.5 rounded text-sm font-medium transition-colors
+                    {% if request.endpoint == 'index' %}text-white bg-white/10{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            Funds
+          </a>
+          <a href="/compare"
+             class="px-3 py-1.5 rounded text-sm font-medium transition-colors
+                    {% if request.endpoint == 'compare' %}text-white bg-white/10{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            Compare
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page content ───────────────────────────────────────────────── -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────── -->
+  <footer class="mt-16 border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between text-xs text-slate-400">
+      <span>Sharpe (1992) Return-Based Style Analysis · Factors: CDI (BCB), IMA-B (IMAB11), Ibovespa, BRL/USD</span>
+      <span>Source: CVM open data</span>
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

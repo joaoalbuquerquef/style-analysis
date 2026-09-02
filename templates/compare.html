@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Compare Funds{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ──────────────────────────────────────────────────── -->
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">Compare Funds</h1>
+  <p class="text-sm text-slate-500 mt-1">Select up to 5 funds to compare their style exposures and cumulative returns.</p>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+  <!-- ── Left panel: fund selector ──────────────────────────────────── -->
+  <div class="xl:col-span-1">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-20">
+
+      <div class="p-4 border-b border-slate-100">
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">Select Funds</h2>
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"
+               fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+          </svg>
+          <input id="compare-search" type="text" placeholder="Search…"
+                 class="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                 oninput="filterCompareList()" />
+        </div>
+      </div>
+
+      <!-- Selection counter banner -->
+      <div id="sel-banner"
+           class="hidden px-4 py-2 bg-blue-50 border-b border-blue-100 text-xs text-blue-700 font-medium">
+        <span id="sel-banner-text">0 / 5 selected</span>
+        <span class="text-blue-400 ml-1" id="max-msg"></span>
+      </div>
+
+      <!-- Fund list -->
+      <div class="overflow-y-auto" style="max-height:520px">
+        <div class="divide-y divide-slate-50" id="compare-list">
+        {% for f in funds %}
+        <label class="compare-item flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors"
+               data-name="{{ f.nome|lower }}" data-cnpj="{{ f.cnpj|lower }}">
+          <input type="checkbox" value="{{ f.id }}" name="funds"
+                 class="compare-check mt-0.5 rounded border-slate-300 text-blue-600 cursor-pointer flex-shrink-0"
+                 {% if f.id in selected_ids %}checked{% endif %}
+                 onchange="updateCompare()" />
+          <div class="min-w-0">
+            <div class="text-xs font-medium text-slate-700 leading-snug line-clamp-2"
+                 title="{{ f.nome }}">{{ f.nome[:70] }}{% if f.nome|length > 70 %}…{% endif %}</div>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="font-mono text-xs text-slate-400">{{ f.cnpj }}</span>
+              <span class="inline-block px-1.5 py-px rounded text-xs font-semibold {{ style_badge(f.dominant_style) }}">
+                {{ f.dominant_style }}
+              </span>
+            </div>
+          </div>
+        </label>
+        {% endfor %}
+        </div>
+        <div id="compare-empty" class="hidden py-8 text-center text-slate-400 text-sm">No match</div>
+      </div>
+
+      <div class="p-4 border-t border-slate-100">
+        <button onclick="submitCompare()"
+                id="compare-submit-btn"
+                class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold
+                       hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+                {% if selected_ids|length < 2 %}disabled{% endif %}>
+          Compare
+          {% if selected_ids %} ({{ selected_ids|length }} selected){% endif %}
+        </button>
+        {% if selected_ids %}
+        <a href="/compare" class="mt-2 block text-center text-xs text-slate-400 hover:text-slate-600">
+          Clear selection
+        </a>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Right panel: charts ────────────────────────────────────────── -->
+  <div class="xl:col-span-2 flex flex-col gap-5">
+
+    {% if selected_rows %}
+
+    <!-- Selected fund pills -->
+    {% set pill_colors = ['#2563eb','#dc2626','#16a34a','#9333ea','#ea580c'] %}
+    <div class="flex flex-wrap gap-2">
+      {% for r in selected_rows %}
+      <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full pl-3 pr-2 py-1 text-xs shadow-sm">
+        <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ pill_colors[loop.index0] }}"></span>
+        <span class="font-medium text-slate-700 max-w-[180px] truncate">{{ r.nome[:40] }}</span>
+        <span class="inline-block px-1.5 py-px rounded {{ style_badge(r.dominant_style) }} font-semibold">
+          {{ r.dominant_style }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Style exposure comparison -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div id="compare-bar-chart"></div>
+    </div>
+
+    <!-- Metrics comparison table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-100">
+        <h3 class="text-sm font-semibold text-slate-700">Metrics Comparison</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+              <th class="px-5 py-3 text-left">Fund</th>
+              <th class="px-4 py-3 text-right">CDI</th>
+              <th class="px-4 py-3 text-right">IMA-B</th>
+              <th class="px-4 py-3 text-right">Ibov</th>
+              <th class="px-4 py-3 text-right">FX</th>
+              <th class="px-4 py-3 text-right">Alpha</th>
+              <th class="px-4 py-3 text-right">R²</th>
+              <th class="px-4 py-3 text-right">Track.Err</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+          {% set palette = ['#2563eb','#dc2626','#16a34a','#9333ea','#ea580c'] %}
+          {% for r in selected_rows %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-5 py-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style="background:{{ palette[loop.index0] }}"></span>
+                <div>
+                  <div class="font-medium text-slate-700 text-xs leading-snug max-w-[200px] truncate"
+                       title="{{ r.nome }}">{{ r.nome[:42] }}</div>
+                  <a href="/fund/{{ r.id }}"
+                     class="font-mono text-xs text-slate-400 hover:text-blue-500 transition-colors">
+                    {{ r.cnpj }}
+                  </a>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600 text-xs">{{ "%.1f"|format(r.weight_CDI*100) }}%</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600 text-xs">{{ "%.1f"|format(r.weight_IMAB*100) }}%</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600 text-xs">{{ "%.1f"|format(r.weight_Ibovespa*100) }}%</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600 text-xs">{{ "%.1f"|format(r.weight_BRL_USD*100) }}%</td>
+            <td class="px-4 py-3 text-right font-mono text-xs {{ alpha_class(r.alpha) }}">{{ pct(r.alpha) }}</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-700 text-xs">{{ fmt_r2(r.r_squared) }}</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600 text-xs">{{ "%.2f"|format(r.tracking_error*100) }}%</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Cumulative return comparison -->
+    {% if cum_json %}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <div id="cum-chart"></div>
+      <p class="mt-2 text-xs text-slate-400 text-right">
+        Returns indexed to 100 at first common date · Outliers >±25%/day removed
+      </p>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center py-24 text-slate-400">
+      <svg class="w-12 h-12 mb-4 opacity-30" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      <p class="text-sm font-medium">Select 2–5 funds from the left panel to compare.</p>
+      <p class="text-xs mt-1">Charts and metrics will appear here.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const MAX_SEL = 5;
+
+  function filterCompareList() {
+    const q = document.getElementById('compare-search').value.toLowerCase().trim();
+    const items = document.querySelectorAll('#compare-list .compare-item');
+    let visible = 0;
+    items.forEach(item => {
+      const show = !q || item.dataset.name.includes(q) || item.dataset.cnpj.includes(q);
+      item.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+    document.getElementById('compare-empty').classList.toggle('hidden', visible > 0);
+  }
+
+  function getSelected() {
+    return [...document.querySelectorAll('.compare-check:checked')].map(cb => cb.value);
+  }
+
+  function updateCompare() {
+    const sel = getSelected();
+    const banner = document.getElementById('sel-banner');
+    const bannerText = document.getElementById('sel-banner-text');
+    const maxMsg = document.getElementById('max-msg');
+    const btn = document.getElementById('compare-submit-btn');
+
+    if (sel.length > 0) {
+      banner.classList.remove('hidden');
+      bannerText.textContent = `${sel.length} / ${MAX_SEL} selected`;
+      maxMsg.textContent = sel.length >= MAX_SEL ? '(max reached)' : '';
+    } else {
+      banner.classList.add('hidden');
+    }
+
+    // Disable unchecked boxes when at max
+    document.querySelectorAll('.compare-check:not(:checked)').forEach(cb => {
+      cb.disabled = sel.length >= MAX_SEL;
+    });
+    document.querySelectorAll('.compare-check:checked').forEach(cb => {
+      cb.disabled = false;
+    });
+
+    btn.disabled = sel.length < 2;
+    btn.textContent = sel.length < 2
+      ? 'Compare'
+      : `Compare (${sel.length} selected)`;
+  }
+
+  function submitCompare() {
+    const sel = getSelected();
+    if (sel.length < 2) return;
+    window.location.href = `/compare?funds=${sel.join(',')}`;
+  }
+
+  // Init
+  updateCompare();
+</script>
+
+{% if compare_json %}
+<script>
+  const cfg = { responsive: true, displayModeBar: false };
+
+  const barData = {{ compare_json | safe }};
+  Plotly.newPlot('compare-bar-chart', barData.data, barData.layout, cfg);
+
+  {% if cum_json %}
+  const cumData = {{ cum_json | safe }};
+  const cumCfg  = { responsive: true, displayModeBar: true,
+                    modeBarButtonsToRemove: ['select2d','lasso2d'],
+                    displaylogo: false };
+  Plotly.newPlot('cum-chart', cumData.data, cumData.layout, cumCfg);
+  {% endif %}
+</script>
+{% endif %}
+{% endblock %}

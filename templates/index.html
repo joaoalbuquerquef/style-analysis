@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Funds{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ──────────────────────────────────────────────────── -->
+<div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">Multimercado Funds</h1>
+    <p class="text-sm text-slate-500 mt-1">
+      {{ funds|length }} funds · Sharpe (1992) RBSA · 3-year daily returns
+    </p>
+  </div>
+
+  <!-- Compare button (hidden until ≥2 selected) -->
+  <button id="compare-btn"
+          onclick="goCompare()"
+          class="hidden items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg
+                 text-sm font-medium hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+    </svg>
+    Compare selected (<span id="sel-count">0</span>)
+  </button>
+</div>
+
+<!-- ── Search & filter bar ──────────────────────────────────────────── -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4 flex flex-col sm:flex-row gap-3">
+  <div class="relative flex-1">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
+         fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    </svg>
+    <input id="search-input" type="text" placeholder="Search fund name or CNPJ…"
+           class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg
+                  focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400"
+           oninput="filterTable()" />
+  </div>
+  <select id="style-filter"
+          class="px-3 py-2 text-sm border border-slate-200 rounded-lg
+                 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 bg-white"
+          onchange="filterTable()">
+    <option value="">All styles</option>
+    <option value="CDI">CDI dominant</option>
+    <option value="IMAB">IMA-B dominant</option>
+    <option value="Ibovespa">Ibovespa dominant</option>
+    <option value="BRL_USD">BRL/USD dominant</option>
+  </select>
+</div>
+
+<!-- ── Fund table ───────────────────────────────────────────────────── -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <table class="w-full text-sm" id="fund-table">
+    <thead>
+      <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <th class="w-8 pl-4 py-3">
+          <input type="checkbox" id="select-all" title="Select all visible"
+                 class="rounded border-slate-300 text-blue-600 cursor-pointer"
+                 onchange="toggleAll(this)" />
+        </th>
+        <th class="pl-3 py-3 text-left">Fund</th>
+        <th class="px-4 py-3 text-center hidden sm:table-cell">Style</th>
+        <th class="px-4 py-3 text-right hidden md:table-cell">CDI</th>
+        <th class="px-4 py-3 text-right hidden md:table-cell">IMA-B</th>
+        <th class="px-4 py-3 text-right hidden md:table-cell">Ibov</th>
+        <th class="px-4 py-3 text-right">Alpha</th>
+        <th class="px-4 py-3 text-right">R²</th>
+        <th class="px-4 py-3 text-right hidden sm:table-cell">Track.Err</th>
+        <th class="px-4 py-3 text-right hidden lg:table-cell">N obs</th>
+        <th class="w-8 pr-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody id="fund-tbody">
+    {% for f in funds %}
+    <tr class="fund-row border-b border-slate-100 transition-colors"
+        data-name="{{ f.nome|lower }}"
+        data-cnpj="{{ f.cnpj|lower }}"
+        data-style="{{ f.dominant_style }}"
+        onclick="rowClick(event, '{{ f.id }}')">
+
+      <!-- checkbox -->
+      <td class="pl-4 py-3" onclick="event.stopPropagation()">
+        <input type="checkbox" value="{{ f.id }}"
+               class="fund-check rounded border-slate-300 text-blue-600 cursor-pointer"
+               onchange="updateSelection()" />
+      </td>
+
+      <!-- Fund name + CNPJ -->
+      <td class="pl-3 py-3 max-w-xs">
+        <div class="font-medium text-slate-800 truncate leading-5" title="{{ f.nome }}">
+          {{ f.nome[:55] }}{% if f.nome|length > 55 %}…{% endif %}
+        </div>
+        <div class="font-mono text-xs text-slate-400 mt-0.5">{{ f.cnpj }}</div>
+      </td>
+
+      <!-- Dominant style badge -->
+      <td class="px-4 py-3 text-center hidden sm:table-cell">
+        <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold {{ style_badge(f.dominant_style) }}">
+          {{ f.dominant_style }}
+        </span>
+      </td>
+
+      <!-- Weight pills -->
+      <td class="px-4 py-3 text-right font-mono text-slate-600 hidden md:table-cell">
+        {{ "%.1f"|format(f.weight_CDI * 100) }}%
+      </td>
+      <td class="px-4 py-3 text-right font-mono text-slate-600 hidden md:table-cell">
+        {{ "%.1f"|format(f.weight_IMAB * 100) }}%
+      </td>
+      <td class="px-4 py-3 text-right font-mono text-slate-600 hidden md:table-cell">
+        {{ "%.1f"|format(f.weight_Ibovespa * 100) }}%
+      </td>
+
+      <!-- Alpha -->
+      <td class="px-4 py-3 text-right font-mono {{ alpha_class(f.alpha) }}">
+        {{ pct(f.alpha) }}
+      </td>
+
+      <!-- R² -->
+      <td class="px-4 py-3 text-right font-mono text-slate-700">
+        {{ fmt_r2(f.r_squared) }}
+      </td>
+
+      <!-- Tracking error -->
+      <td class="px-4 py-3 text-right font-mono text-slate-600 hidden sm:table-cell">
+        {{ "%.2f"|format(f.tracking_error * 100) }}%
+      </td>
+
+      <!-- N obs -->
+      <td class="px-4 py-3 text-right font-mono text-slate-400 text-xs hidden lg:table-cell">
+        {{ f.n_obs }}
+      </td>
+
+      <!-- Detail arrow -->
+      <td class="pr-4 py-3 text-slate-300">
+        <svg class="w-4 h-4 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- empty state -->
+  <div id="empty-state" class="hidden py-16 text-center text-slate-400">
+    <svg class="w-10 h-10 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    </svg>
+    <p class="text-sm font-medium">No funds match your search.</p>
+  </div>
+
+  <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
+    <span id="row-count">Showing {{ funds|length }} funds</span>
+    <span>Click a row to view details · Check boxes to compare</span>
+  </div>
+</div>
+
+<!-- ── Legend ───────────────────────────────────────────────────────── -->
+<div class="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
+  <div class="flex items-center gap-1.5">
+    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Positive alpha
+  </div>
+  <div class="flex items-center gap-1.5">
+    <span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span> Negative alpha
+  </div>
+  <div class="flex items-center gap-1.5">
+    <span class="font-mono">R²</span> = fraction of variance explained by style benchmark
+  </div>
+  <div class="flex items-center gap-1.5">
+    <span class="font-mono">Track.Err</span> = annualised std of residuals
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── State ──────────────────────────────────────────────────────────
+  const MAX_SELECT = 5;
+  let selected = new Set();
+
+  // ── Filtering ──────────────────────────────────────────────────────
+  function filterTable() {
+    const q     = document.getElementById('search-input').value.toLowerCase().trim();
+    const style = document.getElementById('style-filter').value;
+    const rows  = document.querySelectorAll('#fund-tbody tr');
+    let visible = 0;
+
+    rows.forEach(row => {
+      const nameMatch  = !q || row.dataset.name.includes(q) || row.dataset.cnpj.includes(q);
+      const styleMatch = !style || row.dataset.style === style;
+      const show = nameMatch && styleMatch;
+      row.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+
+    document.getElementById('row-count').textContent = `Showing ${visible} fund${visible !== 1 ? 's' : ''}`;
+    document.getElementById('empty-state').classList.toggle('hidden', visible > 0);
+  }
+
+  // ── Row click → detail ─────────────────────────────────────────────
+  function rowClick(event, id) {
+    if (event.target.type === 'checkbox') return;
+    window.location.href = `/fund/${id}`;
+  }
+
+  // ── Selection management ───────────────────────────────────────────
+  function updateSelection() {
+    selected.clear();
+    document.querySelectorAll('.fund-check:checked').forEach(cb => selected.add(cb.value));
+
+    // Enforce MAX_SELECT
+    if (selected.size >= MAX_SELECT) {
+      document.querySelectorAll('.fund-check:not(:checked)').forEach(cb => cb.disabled = true);
+    } else {
+      document.querySelectorAll('.fund-check').forEach(cb => cb.disabled = false);
+    }
+
+    const btn = document.getElementById('compare-btn');
+    const cnt = document.getElementById('sel-count');
+    cnt.textContent = selected.size;
+    btn.classList.toggle('hidden',  selected.size < 2);
+    btn.classList.toggle('flex',    selected.size >= 2);
+  }
+
+  function toggleAll(master) {
+    const visible = [...document.querySelectorAll('#fund-tbody tr:not(.hidden) .fund-check')];
+    const toCheck = visible.slice(0, MAX_SELECT);
+    toCheck.forEach(cb => { cb.checked = master.checked; });
+    visible.slice(MAX_SELECT).forEach(cb => { cb.checked = false; });
+    updateSelection();
+  }
+
+  function goCompare() {
+    window.location.href = `/compare?funds=${[...selected].join(',')}`;
+  }
+</script>
+{% endblock %}
