@@ -8,3 +8,4 @@ plotly==5.22.0
 requests==2.32.5
 yfinance==1.2.0
 python-dotenv==1.2.1
+pyarrow==17.0.0

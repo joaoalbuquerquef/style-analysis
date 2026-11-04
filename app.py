@@ -1,28 +1,30 @@
 """
-Style Analysis Dashboard — Flask app.
+Dashboard de análise de estilo — app Flask.
 
-Data is loaded once at startup from data/raw/*.csv.
-No regressions are re-run per request.
+Os dados ficam em DATA_DIR e são mantidos por pipeline.py (lista de fundos,
+cotas da CVM, fatores e regressão). O app recarrega tudo quando uma tarefa termina.
 """
 
 import json
-from pathlib import Path
+import logging
+import os
+import threading
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import plotly
 import plotly.graph_objects as go
-from flask import Flask, abort, render_template, request
+from flask import Flask, abort, jsonify, render_template, request
+
+import pipeline
+from auth import init_auth
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s  %(message)s")
 
 # ---------------------------------------------------------------------------
-# Startup data loading
+# Dados (recarregados depois de cada atualização)
 # ---------------------------------------------------------------------------
-
-DATA_DIR = Path(__file__).parent / "data" / "raw"
-
-style_df   = pd.read_csv(DATA_DIR / "style_results.csv")
-fund_ret   = pd.read_csv(DATA_DIR / "fund_returns.csv",  index_col=0, parse_dates=True)
-factors_df = pd.read_csv(DATA_DIR / "factors.csv",       index_col=0, parse_dates=True)
 
 FACTOR_COLS   = ["weight_CDI", "weight_IMAB", "weight_Ibovespa", "weight_BRL_USD"]
 FACTOR_LABELS = ["CDI", "IMA-B", "Ibovespa", "BRL/USD"]
@@ -33,8 +35,25 @@ FAC_SERIES    = ["CDI", "IMA-B", "Ibovespa", "BRL_USD"]   # columns in factors_d
 def _to_id(cnpj: str) -> str:
     return "".join(c for c in cnpj if c.isdigit())
 
-style_df["id"] = style_df["cnpj"].apply(_to_id)
-ID_TO_ROW: dict = {row["id"]: row for _, row in style_df.iterrows()}
+
+style_df = fund_ret = factors_df = None
+ID_TO_ROW: dict = {}
+_lock_dados = threading.Lock()
+
+
+def _carregar_dados() -> None:
+    global style_df, fund_ret, factors_df, ID_TO_ROW
+    s, r, f = pipeline.carregar_resultados()
+    s["id"] = s["cnpj"].apply(_to_id)
+    with _lock_dados:
+        style_df, fund_ret, factors_df = s, r, f
+        ID_TO_ROW = {row["id"]: row for _, row in s.iterrows()}
+
+
+_auto = os.getenv("AUTO_UPDATE", "1" if os.getenv("RAILWAY_ENVIRONMENT") else "0") == "1"
+pipeline.iniciar(auto=_auto)
+_carregar_dados()
+pipeline.ao_concluir(_carregar_dados)
 
 # ---------------------------------------------------------------------------
 # Chart helpers
@@ -78,7 +97,7 @@ def _style_bar_chart(row: pd.Series) -> str:
         barmode="relative",
         height=220,
         margin=dict(l=8, r=60, t=36, b=8),
-        title=dict(text="Style Exposures", font=dict(size=14, color="#0f172a")),
+        title=dict(text="Exposições de estilo", font=dict(size=14, color="#0f172a")),
         xaxis=dict(**_AXIS, range=[0, 115], ticksuffix="%"),
         yaxis=dict(**_AXIS, categoryorder="array",
                    categoryarray=FACTOR_LABELS[::-1], tickfont=dict(size=13)),
@@ -106,21 +125,21 @@ def _return_chart(cnpj: str, row: pd.Series) -> str:
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=aligned.index, y=cum_fund.values,
-        name="Fund",
+        name="Fundo",
         line=dict(color="#2563eb", width=2),
-        hovertemplate="%{x|%d %b %Y}: <b>%{y:.1f}</b><extra></extra>",
+        hovertemplate="%{x|%d/%m/%Y}: <b>%{y:.1f}</b><extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=aligned.index, y=cum_bench.values,
-        name="Style Benchmark",
+        name="Carteira de referência",
         line=dict(color="#f59e0b", width=2, dash="dash"),
-        hovertemplate="%{x|%d %b %Y}: <b>%{y:.1f}</b><extra></extra>",
+        hovertemplate="%{x|%d/%m/%Y}: <b>%{y:.1f}</b><extra></extra>",
     ))
     fig.update_layout(**_CHART_BASE)
     fig.update_layout(
         height=320,
         margin=dict(l=8, r=8, t=40, b=8),
-        title=dict(text="Cumulative Return  (base = 100)", font=dict(size=14, color="#0f172a")),
+        title=dict(text="Retorno acumulado (base = 100)", font=dict(size=14, color="#0f172a")),
         xaxis=dict(**_AXIS),
         yaxis=dict(**_AXIS),
         hovermode="x unified",
@@ -152,7 +171,7 @@ def _compare_chart(ids: list) -> str:
         barmode="group",
         height=420,
         margin=dict(l=8, r=8, t=50, b=80),
-        title=dict(text="Style Exposures — Side by Side", font=dict(size=14, color="#0f172a")),
+        title=dict(text="Exposições de estilo — lado a lado", font=dict(size=14, color="#0f172a")),
         xaxis=dict(**_AXIS, tickangle=-20),
         yaxis=dict(**_AXIS, ticksuffix="%", range=[0, 108]),
     )
@@ -182,14 +201,14 @@ def _cum_compare_chart(ids: list) -> str:
             x=aligned.index, y=cum.values,
             name=short,
             line=dict(color=color, width=2),
-            hovertemplate="%{x|%d %b %Y}: <b>%{y:.1f}</b><extra></extra>",
+            hovertemplate="%{x|%d/%m/%Y}: <b>%{y:.1f}</b><extra></extra>",
         ))
 
     fig.update_layout(**_CHART_BASE)
     fig.update_layout(
         height=380,
         margin=dict(l=8, r=8, t=50, b=8),
-        title=dict(text="Cumulative Return Comparison  (base = 100)", font=dict(size=14, color="#0f172a")),
+        title=dict(text="Comparação de retorno acumulado (base = 100)", font=dict(size=14, color="#0f172a")),
         hovermode="x unified",
         yaxis=dict(**_AXIS),
     )
@@ -209,6 +228,10 @@ def _fmt_r2(v: float) -> str:
 def _alpha_class(alpha: float) -> str:
     return "text-emerald-600 font-semibold" if alpha >= 0 else "text-red-500 font-semibold"
 
+def _style_label(style: str) -> str:
+    return {"IMAB": "IMA-B", "BRL_USD": "BRL/USD"}.get(style, style)
+
+
 def _style_badge(style: str) -> str:
     colors = {
         "CDI":      "bg-blue-100 text-blue-700",
@@ -224,8 +247,10 @@ def _style_badge(style: str) -> str:
 # ---------------------------------------------------------------------------
 
 app = Flask(__name__)
+init_auth(app, "Análise de Estilo de Fundos")
 app.jinja_env.globals.update(
     pct=_pct, fmt_r2=_fmt_r2, alpha_class=_alpha_class, style_badge=_style_badge,
+    style_label=_style_label,
 )
 
 
@@ -276,6 +301,93 @@ def compare():
 
 
 # ---------------------------------------------------------------------------
+# Gestão de fundos e atualização
+# ---------------------------------------------------------------------------
+
+def _data_br(iso):
+    if not iso:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(iso))
+    except ValueError:
+        return str(iso)
+    return dt.strftime("%d/%m/%Y %H:%M") if "T" in str(iso) else dt.strftime("%d/%m/%Y")
+
+
+@app.context_processor
+def _contexto_global():
+    st = pipeline.status()
+    return {
+        "dados_ate": _data_br(st.get("dados_ate")),
+        "ultima_atualizacao": _data_br(st.get("ultima_atualizacao")),
+    }
+
+
+@app.route("/fundos")
+def gerenciar_fundos():
+    fundos = pipeline.carregar_fundos()
+    analisados = set(style_df["cnpj"])
+    lista = []
+    for f in fundos.to_dict(orient="records"):
+        f["id"] = _to_id(f["cnpj"])
+        f["analisado"] = f["cnpj"] in analisados
+        f["adicionado_em"] = _data_br(f.get("adicionado_em")) or ""
+        lista.append(f)
+    lista.sort(key=lambda f: f["nome"])
+    return render_template("fundos.html", fundos=lista)
+
+
+@app.route("/api/status")
+def api_status():
+    st = pipeline.status()
+    st["dados_ate_br"] = _data_br(st.get("dados_ate"))
+    st["ultima_atualizacao_br"] = _data_br(st.get("ultima_atualizacao"))
+    return jsonify(st)
+
+
+@app.route("/api/buscar")
+def api_buscar():
+    try:
+        achados = pipeline.buscar(request.args.get("q", ""))
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"erro": f"Não foi possível consultar o cadastro da CVM: {exc}"}), 502
+    na_lista = set(pipeline.carregar_fundos()["cnpj"])
+    for a in achados:
+        a["na_lista"] = a["cnpj"] in na_lista
+    return jsonify({"resultados": achados})
+
+
+@app.route("/api/fundos", methods=["POST"])
+def api_adicionar():
+    cnpj = (request.get_json(silent=True) or {}).get("cnpj", "")
+    try:
+        info = pipeline.preparar_inclusao(cnpj)
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"erro": f"Não foi possível consultar o cadastro da CVM: {exc}"}), 502
+    if not pipeline.enfileirar("adicionar", info["cnpj"]):
+        return jsonify({"erro": "Esse fundo já está sendo adicionado."}), 409
+    return jsonify({"ok": True, "nome": info["nome"], "cnpj": info["cnpj"]}), 202
+
+
+@app.route("/api/fundos/<cnpj_id>/remover", methods=["POST"])
+def api_remover(cnpj_id: str):
+    try:
+        pipeline.remover(cnpj_id)
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    return jsonify({"ok": True}), 202
+
+
+@app.route("/api/atualizar", methods=["POST"])
+def api_atualizar():
+    if not pipeline.enfileirar("atualizar"):
+        return jsonify({"erro": "Uma atualização já está na fila."}), 409
+    return jsonify({"ok": True}), 202
+
+
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, use_reloader=False, port=5001)

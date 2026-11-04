@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Compare Funds{% endblock %}
+{% block title %}Comparar fundos{% endblock %}
 
 {% block content %}
 
 <!-- ── Page header ──────────────────────────────────────────────────── -->
 <div class="mb-6">
-  <h1 class="text-2xl font-bold text-slate-900">Compare Funds</h1>
-  <p class="text-sm text-slate-500 mt-1">Select up to 5 funds to compare their style exposures and cumulative returns.</p>
+  <h1 class="text-2xl font-bold text-slate-900">Comparar fundos</h1>
+  <p class="text-sm text-slate-500 mt-1">Selecione até 5 fundos para comparar exposições de estilo e retornos acumulados.</p>
 </div>
 
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -16,14 +16,14 @@
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-20">
 
       <div class="p-4 border-b border-slate-100">
-        <h2 class="text-sm font-semibold text-slate-700 mb-3">Select Funds</h2>
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">Selecionar fundos</h2>
         <div class="relative">
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"
                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round"
                   d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
           </svg>
-          <input id="compare-search" type="text" placeholder="Search…"
+          <input id="compare-search" type="text" placeholder="Buscar…"
                  class="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg
                         focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                  oninput="filterCompareList()" />
@@ -33,7 +33,7 @@
       <!-- Selection counter banner -->
       <div id="sel-banner"
            class="hidden px-4 py-2 bg-blue-50 border-b border-blue-100 text-xs text-blue-700 font-medium">
-        <span id="sel-banner-text">0 / 5 selected</span>
+        <span id="sel-banner-text">0 / 5 selecionados</span>
         <span class="text-blue-400 ml-1" id="max-msg"></span>
       </div>
 
@@ -53,14 +53,14 @@
             <div class="flex items-center gap-1.5 mt-0.5">
               <span class="font-mono text-xs text-slate-400">{{ f.cnpj }}</span>
               <span class="inline-block px-1.5 py-px rounded text-xs font-semibold {{ style_badge(f.dominant_style) }}">
-                {{ f.dominant_style }}
+                {{ style_label(f.dominant_style) }}
               </span>
             </div>
           </div>
         </label>
         {% endfor %}
         </div>
-        <div id="compare-empty" class="hidden py-8 text-center text-slate-400 text-sm">No match</div>
+        <div id="compare-empty" class="hidden py-8 text-center text-slate-400 text-sm">Nenhum resultado</div>
       </div>
 
       <div class="p-4 border-t border-slate-100">
@@ -70,12 +70,12 @@
                        hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm
                        disabled:opacity-40 disabled:cursor-not-allowed"
                 {% if selected_ids|length < 2 %}disabled{% endif %}>
-          Compare
-          {% if selected_ids %} ({{ selected_ids|length }} selected){% endif %}
+          Comparar
+          {% if selected_ids %} ({{ selected_ids|length }} selecionados){% endif %}
         </button>
         {% if selected_ids %}
         <a href="/compare" class="mt-2 block text-center text-xs text-slate-400 hover:text-slate-600">
-          Clear selection
+          Limpar seleção
         </a>
         {% endif %}
       </div>
@@ -96,7 +96,7 @@
         <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ pill_colors[loop.index0] }}"></span>
         <span class="font-medium text-slate-700 max-w-[180px] truncate">{{ r.nome[:40] }}</span>
         <span class="inline-block px-1.5 py-px rounded {{ style_badge(r.dominant_style) }} font-semibold">
-          {{ r.dominant_style }}
+          {{ style_label(r.dominant_style) }}
         </span>
       </div>
       {% endfor %}
@@ -110,20 +110,20 @@
     <!-- Metrics comparison table -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="px-5 py-3 border-b border-slate-100">
-        <h3 class="text-sm font-semibold text-slate-700">Metrics Comparison</h3>
+        <h3 class="text-sm font-semibold text-slate-700">Comparação de métricas</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="bg-slate-50 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-              <th class="px-5 py-3 text-left">Fund</th>
+              <th class="px-5 py-3 text-left">Fundo</th>
               <th class="px-4 py-3 text-right">CDI</th>
               <th class="px-4 py-3 text-right">IMA-B</th>
               <th class="px-4 py-3 text-right">Ibov</th>
-              <th class="px-4 py-3 text-right">FX</th>
-              <th class="px-4 py-3 text-right">Alpha</th>
+              <th class="px-4 py-3 text-right">Câmbio</th>
+              <th class="px-4 py-3 text-right">Alfa</th>
               <th class="px-4 py-3 text-right">R²</th>
-              <th class="px-4 py-3 text-right">Track.Err</th>
+              <th class="px-4 py-3 text-right">Tracking error</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
@@ -163,7 +163,7 @@
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <div id="cum-chart"></div>
       <p class="mt-2 text-xs text-slate-400 text-right">
-        Returns indexed to 100 at first common date · Outliers >±25%/day removed
+        Retornos com base 100 na primeira data comum · Outliers acima de ±25%/dia removidos
       </p>
     </div>
     {% endif %}
@@ -175,8 +175,8 @@
         <path stroke-linecap="round" stroke-linejoin="round"
               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
-      <p class="text-sm font-medium">Select 2–5 funds from the left panel to compare.</p>
-      <p class="text-xs mt-1">Charts and metrics will appear here.</p>
+      <p class="text-sm font-medium">Selecione de 2 a 5 fundos no painel à esquerda para comparar.</p>
+      <p class="text-xs mt-1">Os gráficos e as métricas aparecerão aqui.</p>
     </div>
     {% endif %}
 
@@ -214,8 +214,8 @@
 
     if (sel.length > 0) {
       banner.classList.remove('hidden');
-      bannerText.textContent = `${sel.length} / ${MAX_SEL} selected`;
-      maxMsg.textContent = sel.length >= MAX_SEL ? '(max reached)' : '';
+      bannerText.textContent = `${sel.length} / ${MAX_SEL} selecionados`;
+      maxMsg.textContent = sel.length >= MAX_SEL ? '(limite atingido)' : '';
     } else {
       banner.classList.add('hidden');
     }
@@ -230,8 +230,8 @@
 
     btn.disabled = sel.length < 2;
     btn.textContent = sel.length < 2
-      ? 'Compare'
-      : `Compare (${sel.length} selected)`;
+      ? 'Comparar'
+      : `Comparar (${sel.length} selecionados)`;
   }
 
   function submitCompare() {

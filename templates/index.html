@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Funds{% endblock %}
+{% block title %}Fundos{% endblock %}
 
 {% block content %}
 
 <!-- ── Page header ──────────────────────────────────────────────────── -->
 <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-slate-900">Multimercado Funds</h1>
+    <h1 class="text-2xl font-bold text-slate-900">Fundos multimercado</h1>
     <p class="text-sm text-slate-500 mt-1">
-      {{ funds|length }} funds · Sharpe (1992) RBSA · 3-year daily returns
+      {{ funds|length }} fundos · Análise de estilo de Sharpe (1992) · retornos diários de 3 anos{% if dados_ate %} · dados até {{ dados_ate }}{% endif %}
     </p>
   </div>
 
@@ -20,7 +20,7 @@
     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
     </svg>
-    Compare selected (<span id="sel-count">0</span>)
+    Comparar selecionados (<span id="sel-count">0</span>)
   </button>
 </div>
 
@@ -32,7 +32,7 @@
       <path stroke-linecap="round" stroke-linejoin="round"
             d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
     </svg>
-    <input id="search-input" type="text" placeholder="Search fund name or CNPJ…"
+    <input id="search-input" type="text" placeholder="Buscar por nome do fundo ou CNPJ…"
            class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg
                   focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400"
            oninput="filterTable()" />
@@ -41,11 +41,11 @@
           class="px-3 py-2 text-sm border border-slate-200 rounded-lg
                  focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 bg-white"
           onchange="filterTable()">
-    <option value="">All styles</option>
-    <option value="CDI">CDI dominant</option>
-    <option value="IMAB">IMA-B dominant</option>
-    <option value="Ibovespa">Ibovespa dominant</option>
-    <option value="BRL_USD">BRL/USD dominant</option>
+    <option value="">Todos os estilos</option>
+    <option value="CDI">Predominante: CDI</option>
+    <option value="IMAB">Predominante: IMA-B</option>
+    <option value="Ibovespa">Predominante: Ibovespa</option>
+    <option value="BRL_USD">Predominante: BRL/USD</option>
   </select>
 </div>
 
@@ -55,19 +55,19 @@
     <thead>
       <tr class="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
         <th class="w-8 pl-4 py-3">
-          <input type="checkbox" id="select-all" title="Select all visible"
+          <input type="checkbox" id="select-all" title="Selecionar todos os visíveis"
                  class="rounded border-slate-300 text-blue-600 cursor-pointer"
                  onchange="toggleAll(this)" />
         </th>
-        <th class="pl-3 py-3 text-left">Fund</th>
-        <th class="px-4 py-3 text-center hidden sm:table-cell">Style</th>
+        <th class="pl-3 py-3 text-left">Fundo</th>
+        <th class="px-4 py-3 text-center hidden sm:table-cell">Estilo</th>
         <th class="px-4 py-3 text-right hidden md:table-cell">CDI</th>
         <th class="px-4 py-3 text-right hidden md:table-cell">IMA-B</th>
         <th class="px-4 py-3 text-right hidden md:table-cell">Ibov</th>
-        <th class="px-4 py-3 text-right">Alpha</th>
+        <th class="px-4 py-3 text-right">Alfa</th>
         <th class="px-4 py-3 text-right">R²</th>
-        <th class="px-4 py-3 text-right hidden sm:table-cell">Track.Err</th>
-        <th class="px-4 py-3 text-right hidden lg:table-cell">N obs</th>
+        <th class="px-4 py-3 text-right hidden sm:table-cell">Tracking error</th>
+        <th class="px-4 py-3 text-right hidden lg:table-cell">Nº obs.</th>
         <th class="w-8 pr-4 py-3"></th>
       </tr>
     </thead>
@@ -97,7 +97,7 @@
       <!-- Dominant style badge -->
       <td class="px-4 py-3 text-center hidden sm:table-cell">
         <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold {{ style_badge(f.dominant_style) }}">
-          {{ f.dominant_style }}
+          {{ style_label(f.dominant_style) }}
         </span>
       </td>
 
@@ -148,28 +148,28 @@
     <svg class="w-10 h-10 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
     </svg>
-    <p class="text-sm font-medium">No funds match your search.</p>
+    <p class="text-sm font-medium">Nenhum fundo corresponde à busca.</p>
   </div>
 
   <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
-    <span id="row-count">Showing {{ funds|length }} funds</span>
-    <span>Click a row to view details · Check boxes to compare</span>
+    <span id="row-count">Exibindo {{ funds|length }} fundos</span>
+    <span>Clique numa linha para ver os detalhes · Marque as caixas para comparar</span>
   </div>
 </div>
 
 <!-- ── Legend ───────────────────────────────────────────────────────── -->
 <div class="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
   <div class="flex items-center gap-1.5">
-    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Positive alpha
+    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Alfa positivo
   </div>
   <div class="flex items-center gap-1.5">
-    <span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span> Negative alpha
+    <span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span> Alfa negativo
   </div>
   <div class="flex items-center gap-1.5">
-    <span class="font-mono">R²</span> = fraction of variance explained by style benchmark
+    <span class="font-mono">R²</span> = parcela da variância explicada pela carteira de referência
   </div>
   <div class="flex items-center gap-1.5">
-    <span class="font-mono">Track.Err</span> = annualised std of residuals
+    <span class="font-mono">Tracking error</span> = desvio-padrão anualizado dos resíduos
   </div>
 </div>
 
@@ -196,7 +196,7 @@
       if (show) visible++;
     });
 
-    document.getElementById('row-count').textContent = `Showing ${visible} fund${visible !== 1 ? 's' : ''}`;
+    document.getElementById('row-count').textContent = `Exibindo ${visible} fundo${visible !== 1 ? 's' : ''}`;
     document.getElementById('empty-state').classList.toggle('hidden', visible > 0);
   }
 

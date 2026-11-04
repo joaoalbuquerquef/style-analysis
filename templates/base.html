@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}Style Analysis{% endblock %} — RBSA Dashboard</title>
+  <title>{% block title %}Análise de Estilo{% endblock %} — Análise de Estilo de Fundos</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -73,12 +73,20 @@
           <a href="/"
              class="px-3 py-1.5 rounded text-sm font-medium transition-colors
                     {% if request.endpoint == 'index' %}text-white bg-white/10{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            Funds
+            Fundos
           </a>
           <a href="/compare"
              class="px-3 py-1.5 rounded text-sm font-medium transition-colors
                     {% if request.endpoint == 'compare' %}text-white bg-white/10{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
-            Compare
+            Comparar
+          </a>
+          <a href="/fundos"
+             class="px-3 py-1.5 rounded text-sm font-medium transition-colors
+                    {% if request.endpoint == 'gerenciar_fundos' %}text-white bg-white/10{% else %}text-slate-400 hover:text-white hover:bg-white/5{% endif %}">
+            Gerenciar fundos
+          </a>
+          <a href="/logout" class="px-3 py-1.5 rounded text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+            Sair
           </a>
         </div>
 
@@ -94,8 +102,8 @@
   <!-- ── Footer ─────────────────────────────────────────────────────── -->
   <footer class="mt-16 border-t border-slate-200 bg-white">
     <div class="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between text-xs text-slate-400">
-      <span>Sharpe (1992) Return-Based Style Analysis · Factors: CDI (BCB), IMA-B (IMAB11), Ibovespa, BRL/USD</span>
-      <span>Source: CVM open data</span>
+      <span>Análise de estilo baseada em retornos de Sharpe (1992) · Fatores: CDI (BCB), IMA-B (IMAB11), Ibovespa, BRL/USD</span>
+      <span>Fonte: dados abertos da CVM{% if dados_ate %} · cotas até {{ dados_ate }}{% endif %}{% if ultima_atualizacao %} · atualizado em {{ ultima_atualizacao }}{% endif %}</span>
     </div>
   </footer>
 
