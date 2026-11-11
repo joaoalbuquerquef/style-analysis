@@ -42,7 +42,7 @@ Python · pandas · NumPy · SciPy (otimização com restrições) · Flask · P
 
 ## Como rodar
 
-\`\`\`bash
+```bash
 git clone https://github.com/joaoalbuquerquef/style-analysis.git
 cd style-analysis
 
@@ -51,9 +51,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 python app.py
-\`\`\`
+```
 
-A aplicação sobe em \`http://localhost:5000\`.
+A aplicação sobe em `http://localhost:5000`.
 
 ## Limitações
 
